@@ -16,4 +16,30 @@ public class Extractor {
         }
         return finalArrayList;
     }
+
+    public static ArrayList<String> extractTags(String input){
+        String[] stringArray = input.split(" ");
+        ArrayList<String> finalArrayList = new ArrayList<>();
+        for(int i = 0; i<stringArray.length; i++){
+            String tmp = stringArray[i];
+            if(tmp.contains("#")){
+                finalArrayList.add(stringArray[i]);
+            }
+        }
+        return finalArrayList;
+    }
+
+    public static ArrayList<String> extractMentions(String input){
+        String[] stringArray = input.split(" ");
+        ArrayList<String> finalArrayList = new ArrayList<>();
+        for(int i = 0; i<stringArray.length; i++){
+            String tmp = stringArray[i];
+            if(tmp.contains("@")){
+                finalArrayList.add(stringArray[i]);
+            }
+        }
+        return finalArrayList;
+    }
+
+
 }

@@ -1,10 +1,14 @@
 package eu.streamline.hackathon.flink.job;
 
+import eu.streamline.hackathon.flink.operations.Extractor;
 import eu.streamline.hackathon.flink.source.MyTwitterSource;
+import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,7 +44,14 @@ public class FlinkJavaJob {
         // Create the data source
         DataStream<String> streamSource = env.addSource(new MyTwitterSource(props));
 
-        streamSource.print();
+        streamSource.flatMap(new FlatMapFunction<String, Tuple2<String,Integer>>() {
+            @Override
+            public void flatMap(String s, Collector<Tuple2<String, Integer>> collector) throws Exception {
+                for (String x : Extractor.extract(s)) {
+                    collector.collect(new Tuple2<String, Integer>(x,1));
+                }
+            }
+        }).print();
 
         try {
             env.execute("Flink Java GDELT Analyzer");
