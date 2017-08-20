@@ -36,6 +36,7 @@ public class FlinkJavaJob {
      */
     public static void main(String[] args) throws IOException {
 
+        int seconds = 20;
         ParameterTool params = ParameterTool.fromArgs(args);
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -64,90 +65,104 @@ public class FlinkJavaJob {
                     }
                 });
 
-        DataStream<Tuple2<String, Integer>> hashtagSum = tweetEvents
-                .flatMap(new FlatMapFunction<TwitEvent, Tuple2<String, Integer>>() {
-                    @Override
-                    public void flatMap(TwitEvent twitEvent, Collector<Tuple2<String, Integer>> collector) throws Exception {
-                        for (String hashtag : Extractor.extractTags(twitEvent.text)) {
-                            collector.collect(new Tuple2<String, Integer>(hashtag, 1));
-                        }
-                    }
-                })
-                .keyBy(0)
-                .window(TumblingProcessingTimeWindows.of(Time.seconds(10)))
-                .sum(1);
-
-        Iterator<Tuple2<String, Integer>> tuple2Iterator = DataStreamUtils.collect(hashtagSum);
-
-        File fileHt = new File("hashtags.csv");
-        FileWriter fileWriterHt = new FileWriter(fileHt, false);
-        StringBuilder stringBuilderHt = new StringBuilder();
-        stringBuilderHt.append("id,value\n");
-
-        long startDateHt = System.currentTimeMillis();
-
-        while (tuple2Iterator.hasNext()) {
-            Tuple2<String, Integer> next = tuple2Iterator.next();
-            long tempDate = System.currentTimeMillis();
-            if (tempDate - startDateHt > 10000) {
-                startDateHt = System.currentTimeMillis();
-                fileWriterHt = new FileWriter(fileHt, false);
-                fileWriterHt.write(stringBuilderHt.toString());
-                fileWriterHt.flush();
-                stringBuilderHt = new StringBuilder();
-                stringBuilderHt.append("id,value\n");
-            }
-            stringBuilderHt.append(next.f0);
-            stringBuilderHt.append(",");
-            stringBuilderHt.append(next.f1);
-            stringBuilderHt.append("\n");
-
-        }
-        fileWriterHt.close();
-
-
-        DataStream<Tuple3<Integer, String, Integer>> sum = tweetEvents
+        DataStream<Tuple3<Integer, String, Integer>> hashtagSum = tweetEvents
                 .flatMap(new FlatMapFunction<TwitEvent, Tuple3<Integer, String, Integer>>() {
                     @Override
                     public void flatMap(TwitEvent twitEvent, Collector<Tuple3<Integer, String, Integer>> collector) throws Exception {
-                        for (String mention : Extractor.extractMentions(twitEvent.text)) {
-                            collector.collect(new Tuple3<Integer, String, Integer>(0, mention, 1));
+                        for (String hashtag : Extractor.extractTags(twitEvent.text)) {
+                            collector.collect(new Tuple3<Integer, String, Integer>(0, hashtag, 1));
                         }
                     }
                 })
                 .keyBy(1)
-                .window(TumblingProcessingTimeWindows.of(Time.seconds(10)))
+                .window(TumblingProcessingTimeWindows.of(Time.seconds(seconds)))
                 .sum(2);
 
-        Iterator<Tuple3<Integer, String, Integer>> tuple3Iterator = DataStreamUtils.collect(sum);
+
+        DataStream<Tuple3<Integer, String, Integer>> mentionsSum = tweetEvents
+                .flatMap(new FlatMapFunction<TwitEvent, Tuple3<Integer, String, Integer>>() {
+                    @Override
+                    public void flatMap(TwitEvent twitEvent, Collector<Tuple3<Integer, String, Integer>> collector) throws Exception {
+                        for (String mention : Extractor.extractMentions(twitEvent.text)) {
+                            collector.collect(new Tuple3<Integer, String, Integer>(1, mention, 1));
+                        }
+                    }
+                })
+                .keyBy(1)
+                .window(TumblingProcessingTimeWindows.of(Time.seconds(seconds)))
+                .sum(2);
+
+        DataStream<Tuple3<Integer, String, Integer>> union = hashtagSum.union(mentionsSum);
+
+        Iterator<Tuple3<Integer, String, Integer>> tuple3Iterator = DataStreamUtils.collect(union);
 
         File file = new File("mentions.csv");
-        FileWriter fileWriter = new FileWriter(file, false);
+        FileWriter mentionsFileWriter = new FileWriter(file, false);
+        HashMap<String,Integer> mentionsHashmap = new HashMap<>();
         StringBuilder stringBuilder = new StringBuilder();
         stringBuilder.append("id,value\n");
 
+        File fileHt = new File("hashtags.csv");
+        FileWriter hashtagFileWriter = new FileWriter(fileHt, false);
+        HashMap<String,Integer> hashtagHashMap = new HashMap<>();
+        StringBuilder stringBuilderHt = new StringBuilder();
+        stringBuilderHt.append("id,value\n");
 
         long startDate = System.currentTimeMillis();
 
         while (tuple3Iterator.hasNext()) {
             Tuple3<Integer, String, Integer> next = tuple3Iterator.next();
             long tempDate = System.currentTimeMillis();
-            if (tempDate - startDate > 10000) {
-                System.out.println("Mentions written.");
+            if (tempDate - startDate > seconds * 1000) {
                 startDate = System.currentTimeMillis();
-                fileWriter = new FileWriter(file, false);
-                fileWriter.write(stringBuilder.toString());
-                fileWriter.flush();
+
+                mentionsFileWriter = new FileWriter(file, false);
+                for (Map.Entry<String,Integer> entry :mentionsHashmap.entrySet()) {
+                    stringBuilder.append(entry.getKey());
+                    stringBuilder.append(",");
+                    stringBuilder.append(entry.getValue());
+                    stringBuilder.append("\n");
+                }
+                mentionsFileWriter.write(stringBuilder.toString());
+                mentionsFileWriter.flush();
+                mentionsHashmap = new HashMap<>();
                 stringBuilder = new StringBuilder();
                 stringBuilder.append("id,value\n");
-            }
-            stringBuilder.append(next.f1);
-            stringBuilder.append(",");
-            stringBuilder.append(next.f2);
-            stringBuilder.append("\n");
 
+                hashtagFileWriter = new FileWriter(fileHt, false);
+                for (Map.Entry<String,Integer> entry :hashtagHashMap.entrySet()) {
+                    stringBuilderHt.append(entry.getKey());
+                    stringBuilderHt.append(",");
+                    stringBuilderHt.append(entry.getValue());
+                    stringBuilderHt.append("\n");
+                }
+                hashtagFileWriter.write(stringBuilderHt.toString());
+                hashtagFileWriter.flush();
+                hashtagHashMap = new HashMap<>();
+                stringBuilderHt = new StringBuilder();
+                stringBuilderHt.append("id,value\n");
+
+                System.out.println("Files written.");
+            }
+            if (next.f0 == 0) {
+                // ITS A HASHTAG
+                if (hashtagHashMap.containsKey(next.f1)) {
+                    hashtagHashMap.put(next.f1, next.f2 + hashtagHashMap.get(next.f1));
+                } else  {
+                    hashtagHashMap.put(next.f1, next.f2);
+                }
+            } else if (next.f0 == 1) {
+                // ITS A MENTION
+                if (mentionsHashmap.containsKey(next.f1)) {
+                    mentionsHashmap.put(next.f1, next.f2 + mentionsHashmap.get(next.f1));
+                } else  {
+                    mentionsHashmap.put(next.f1, next.f2);
+                }
+            }
         }
-        fileWriter.close();
+
+        mentionsFileWriter.close();
+        hashtagFileWriter.close();
 
 //        try {
 //            env.execute("Flink Java Twitter Analyzer");
