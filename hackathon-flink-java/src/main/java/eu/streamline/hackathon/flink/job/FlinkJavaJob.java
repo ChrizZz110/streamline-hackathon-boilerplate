@@ -1,12 +1,11 @@
 package eu.streamline.hackathon.flink.job;
 
-import eu.streamline.hackathon.common.data.TwitEvent;
+import eu.streamline.hackathon.flink.TwitEvent;
 import eu.streamline.hackathon.flink.operations.Extractor;
 import eu.streamline.hackathon.flink.source.MyTwitterSource;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.contrib.streaming.DataStreamUtils;
@@ -36,7 +35,7 @@ public class FlinkJavaJob {
      */
     public static void main(String[] args) throws IOException {
 
-        int seconds = 30;
+        int seconds = 60;
         ParameterTool params = ParameterTool.fromArgs(args);
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();

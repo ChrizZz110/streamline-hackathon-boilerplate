@@ -120,11 +120,11 @@ public class MyTwitterSource extends RichSourceFunction<String> implements Stopp
 
         public StreamingEndpoint createEndpoint() {
             StatusesSampleEndpoint endpoint = new StatusesSampleEndpoint();
-            List<String> languages = new ArrayList<String>();
+            /**List<String> languages = new ArrayList<String>();
             languages.add("en");
             languages.add("de");
             endpoint.languages(new ArrayList<String>());
-            endpoint.addQueryParameter("coordinates", "-32.0,34.0,40.0,75.0");
+            endpoint.addQueryParameter("coordinates", "-32.0,34.0,40.0,75.0");**/
             endpoint.stallWarnings(false);
             endpoint.delimited(false);
             return endpoint;

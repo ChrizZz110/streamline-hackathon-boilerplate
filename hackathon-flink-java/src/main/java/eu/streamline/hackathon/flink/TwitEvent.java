@@ -1,4 +1,4 @@
-package eu.streamline.hackathon.common.data;
+package eu.streamline.hackathon.flink;
 
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
