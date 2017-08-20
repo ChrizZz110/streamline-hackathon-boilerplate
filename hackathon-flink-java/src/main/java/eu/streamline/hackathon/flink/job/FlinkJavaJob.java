@@ -36,7 +36,7 @@ public class FlinkJavaJob {
      */
     public static void main(String[] args) throws IOException {
 
-        int seconds = 20;
+        int seconds = 30;
         ParameterTool params = ParameterTool.fromArgs(args);
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
