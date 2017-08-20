@@ -1,8 +1,11 @@
 package eu.streamline.hackathon.flink.job;
 
+import eu.streamline.hackathon.common.data.TwitEvent;
 import eu.streamline.hackathon.flink.operations.Extractor;
 import eu.streamline.hackathon.flink.source.MyTwitterSource;
+import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -44,17 +47,24 @@ public class FlinkJavaJob {
         // Create the data source
         DataStream<String> streamSource = env.addSource(new MyTwitterSource(props));
 
-        streamSource.flatMap(new FlatMapFunction<String, Tuple2<String,Integer>>() {
-            @Override
-            public void flatMap(String s, Collector<Tuple2<String, Integer>> collector) throws Exception {
-                for (String x : Extractor.extract(s)) {
-                    collector.collect(new Tuple2<String, Integer>(x,1));
-                }
-            }
-        }).print();
+        streamSource
+                .filter(new FilterFunction<String>() {
+                    @Override
+                    public boolean filter(String s) throws Exception {
+                        return s.startsWith("{\"created");
+                    }
+                })
+                .map(new MapFunction<String, TwitEvent>() {
+                    @Override
+                    public TwitEvent map(String s) throws Exception {
+                        return TwitEvent.fromString(s);
+                    }
+                });
+
+        streamSource.print();
 
         try {
-            env.execute("Flink Java GDELT Analyzer");
+            env.execute("Flink Java Twitter Analyzer");
         } catch (Exception e) {
             LOG.error("Failed to execute Flink job {}", e);
         }

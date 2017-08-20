@@ -12,6 +12,8 @@ public class TwitEvent implements Serializable {
     public String user;
     public String text;
     public String userScreenName;
+    public int followersCount;
+    public int friendsCount;
 
     public static TwitEvent fromString(String s) throws JSONException {
         JSONObject json = new JSONObject(s);
@@ -19,9 +21,11 @@ public class TwitEvent implements Serializable {
         TwitEvent event = new TwitEvent();
         event.id = (Long)json.get("id");
         event.created_at = (String) json.get("created_at");
-        event.text = (String) json.get("text");;
+        event.text = (String) json.get("text");
         event.user = json.getJSONObject("user").getString("name");
         event.userScreenName = json.getJSONObject("user").getString("screen_name");
+        event.followersCount = json.getJSONObject("user").getInt("followers_count");
+        event.friendsCount = json.getJSONObject("user").getInt("friends_count");
         return event;
     }
 }
